@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>BlockedFor</title>
+
+    <script type="text/javascript" src="/apps/2.0rc2/sdk.js"></script>
+
+    <script type="text/javascript">
+        Rally.onReady(function () {
+                Ext.define("CustomApp",{extend:"Rally.app.App",componentCls:"app",infinity:new Date("9999-01-01T00:00:00.000Z"),launch:function(){this._loadDatePicker()},_getFiltersForSnapshotData:function(){var currentProject=Rally.environment.getContext().getProject(),projectfilter=Ext.create("Rally.data.lookback.QueryFilter",{property:"Project",operation:"=",value:currentProject.ObjectID}),typeFilter=Ext.create("Rally.data.lookback.QueryFilter",{property:"_TypeHierarchy",operation:"=",value:"HierarchicalRequirement"}),blockedFilter=Ext.create("Rally.data.lookback.QueryFilter",{property:"Blocked",operation:"=",value:!0}),previousBlockedFilter=Ext.create("Rally.data.lookback.QueryFilter",{property:"_PreviousValues.Blocked",operation:"=",value:!1});return projectfilter.and(typeFilter).and(blockedFilter).and(previousBlockedFilter)},_loadDatePicker:function(){var me=this,startDate=Rally.util.DateTime.add(new Date,"day",-1),timePicker=Ext.create("Ext.form.field.Date",{fieldLabel:"Blocked items since",value:startDate,editable:!1,listeners:{select:function(picker,newDate){me._loadSnapshotData(newDate)},afterrender:function(){me._loadSnapshotData(startDate)}}});me.add(timePicker)},_loadSnapshotData:function(blockedDate){var me=this;me.dateBefore=blockedDate;var myFilters=this._getFiltersForSnapshotData();me.snapshotStore?me.snapshotStore.reload():(me.snapshotStore=Ext.create("Rally.data.lookback.SnapshotStore",{filters:myFilters,fetch:["FormattedID","_ValidFrom","_ValidTo","BlockedReason","Name"]}),me.snapshotStore.load({params:{removeUnauthorizedSnapshots:!0},callback:function(records){_.each(records,function(record){record.set("_type","hierarchicalrequirement"),record.set("_ref","/hierarchicalrequirement/"+record.get("ObjectID"))}),me.snapshotStore.filterBy(function(item){return Rally.util.DateTime.getDifference(new Date(item.get("_ValidFrom")),new Date(me.dateBefore),"hour")>0})}}),me.grid||me._createGrid(me.snapshotStore))},_createGrid:function(store){var me=this;me.grid=Ext.create("Rally.ui.grid.Grid",{columnHeader:!1,store:store,sortableColumns:!1,columnCfgs:[{text:"Story ID",dataIndex:"FormattedID",xtype:"templatecolumn",tpl:Ext.create("Rally.ui.renderer.template.FormattedIDTemplate")},{text:"Story Name",dataIndex:"Name"},{text:"Blocked Reason",dataIndex:"BlockedReason"},{text:"Blocked On",dataIndex:"_ValidFrom",xtype:"datecolumn",format:"d M Y"},{text:"For",renderer:function(value,metadata,record){return me._calcBlockedTime(record)}}]}),me.add(me.grid)},_calcBlockedTime:function(dateRec){var from=new Date(dateRec.get("_ValidFrom")),to=new Date(dateRec.get("_ValidTo")),stillBlocked="";Ext.Date.isEqual(to,this.infinity)&&(to=new Date,stillBlocked=' <span class="icon-blocked" style="color: #ee1c25;"></span>');var dt=Rally.util.DateTime.getDifference(to,from,"day");return 0===dt?Rally.util.DateTime.getDifference(to,from,"hour")+" hour(s)"+stillBlocked:dt+" day(s)"+stillBlocked}});
+
+            Rally.launchApp('CustomApp', {
+                name:"BlockedFor",
+	            parentRepos:""
+            });
+
+        });
+    </script>
+
+
+    <style type="text/css">
+        .app {
+     /* Add app styles here */
+}
+
+    </style>
+</head>
+<body></body>
+</html>
